@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: notes
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-100 chars)
+    //   - content: string (required, 1-5000 chars)
+    //   - type: string (required, enum: ['idea', 'goal'])
+    //   - targetDate: string (optional, ISO 8601 format)
+    //   - userId: string (required, matches auth.uid)
+    //   - createdAt: string (required, ISO 8601 format, immutable)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidNote(data) {
+      let requiredFields = ['title', 'content', 'type', 'userId', 'createdAt'];
+      let allowedFields = ['title', 'content', 'type', 'userId', 'createdAt', 'targetDate'];
+      
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allowedFields) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 5000 &&
+             data.type in ['idea', 'goal'] &&
+             data.userId == request.auth.uid &&
+             isValidDateString(data.createdAt) &&
+             (!('targetDate' in data) || isValidDateString(data.targetDate));
+    }
+
+    match /notes/{noteId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidNote(request.resource.data);
+      allow update: if isAuthenticated() && 
+                      resource.data.userId == request.auth.uid &&
+                      isValidNote(request.resource.data) &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      function isAdmin() {
+        return isAuthenticated() &&
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+            (request.auth.token.email == "kamogelomosiah@gmail.com" && request.auth.token.email_verified == true));
+      }
+      
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+  }
+}

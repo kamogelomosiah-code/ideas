@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "An idea or goal with an optional target date.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the note."
+        },
+        "content": {
+          "type": "string",
+          "description": "The detailed content of the note."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["idea", "goal"],
+          "description": "Whether this is an idea or a goal."
+        },
+        "targetDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The target date for the goal or idea."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the note was created."
+        }
+      },
+      "required": ["title", "content", "type", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Collection of user notes."
+    }
+  }
+}
