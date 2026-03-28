@@ -164,14 +164,20 @@ function AddNoteModal({
     if (!title.trim() || !content.trim() || isSubmitting) return;
     
     setIsSubmitting(true);
-    await onAdd({
+    
+    const newNote: Omit<Note, 'id'> = {
       title: title.trim(),
       content: content.trim(),
       type,
-      targetDate: targetDate ? new Date(targetDate).toISOString() : undefined,
       userId,
       createdAt: new Date().toISOString()
-    });
+    };
+    
+    if (targetDate) {
+      newNote.targetDate = new Date(targetDate).toISOString();
+    }
+    
+    await onAdd(newNote);
     onClose();
   };
 
